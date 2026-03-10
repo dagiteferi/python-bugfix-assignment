@@ -11,21 +11,26 @@ This assignment evaluates your ability to:
 
 ### Locally
 
-1.  **Create and activate a virtual environment:**
+1.  **Clone the repository:**
+    ```sh
+    git clone https://github.com/dagiteferi/python-bugfix-assignment
+    cd python-bugfix-assignment
+    ```
+
+2.  **Create and activate a virtual environment:**
     ```sh
     python -m venv venv
     source venv/bin/activate
     ```
     *(On Windows, use `venv\Scripts\activate`)*
 
-2.  **Install dependencies:**
+3.  **Install dependencies:**
     ```sh
     pip install -r requirements.txt
     ```
 
-3.  **Run the tests:**
+4.  **Run the tests:**
     ```sh
-    cd tests/
     pytest -v
     ```
 
