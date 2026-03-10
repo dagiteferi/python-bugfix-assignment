@@ -11,10 +11,13 @@ from dateutil.parser import isoparse
 class OAuth2Token:
     access_token: str
     expires_at: int  
+    
 
     @property
     def expired(self) -> bool:
-        return int(datetime.now(tz=timezone.utc).timestamp()) >= self.expires_at
+        now = int(datetime.now(tz=timezone.utc).timestamp())
+        return now >= self.expires_at - 30
+
 
     def as_header(self) -> str:
         return f"Bearer {self.access_token}"

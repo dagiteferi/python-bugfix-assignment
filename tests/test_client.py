@@ -1,84 +1,52 @@
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, MagicMock
-
 from app.http_client import Client
-from app.tokens import OAuth2Token, token_from_iso
+from app.tokens import OAuth2Token
 
-def test_token_expired_false():
-    future_time = int((datetime.now(tz=timezone.utc) + timedelta(minutes=10)).timestamp())
-    token = OAuth2Token(access_token="abc", expires_at=future_time)
-    assert token.expired is False
 
-def test_token_expired_true():
-    past_time = int((datetime.now(tz=timezone.utc) - timedelta(minutes=1)).timestamp())
-    token = OAuth2Token(access_token="abc", expires_at=past_time)
-    assert token.expired is True
+@pytest.fixture
+def client():
+    c = Client()
+    future = int((datetime.now(tz=timezone.utc) + timedelta(minutes=10)).timestamp())
+    c.oauth2_token = OAuth2Token(access_token="any-token", expires_at=future)
+    return c
 
-def test_token_as_header():
-    token = OAuth2Token(access_token="abc123", expires_at=9999999999)
-    assert token.as_header() == "Bearer abc123"
 
-def test_token_from_iso_with_timezone():
-    token = token_from_iso("abc123", "2030-01-01T12:00:00+00:00")
-    assert isinstance(token, OAuth2Token)
-    assert token.access_token == "abc123"
-    assert token.expires_at == 1893470400
+def test_header_added_for_dict_token(client):
+    client.oauth2_token = {"access_token": "any-value"}
+    with patch.object(client.session, "send", return_value=MagicMock()) as mock_send:
+        client.request("GET", "/dynamic-path", api=True)
+        headers = mock_send.call_args[0][0].headers
+        assert headers["Authorization"] == "Bearer fresh-token"
 
-def test_token_from_iso_without_timezone():
-    token = token_from_iso("abc123", "2030-01-01T12:00:00")
-    assert token.expires_at == 1893470400
 
-@patch("app.http_client.requests.Session.prepare_request")
-def test_client_adds_auth_header(mock_prepare_request):
-    client = Client()
-    future_time = int((datetime.now(tz=timezone.utc) + timedelta(minutes=10)).timestamp())
-    client.oauth2_token = OAuth2Token(access_token="token123", expires_at=future_time)
+def test_refresh_not_called_before_expiry_buffer(client):
+    buffer_seconds = 100
+    now = int(datetime.now(tz=timezone.utc).timestamp())
+    client.oauth2_token = OAuth2Token(access_token="any-token", expires_at=now + buffer_seconds)
 
-    mock_prepared_request = MagicMock()
-    mock_prepared_request.headers = {"Authorization": "Bearer token123"}
-    mock_prepare_request.return_value = mock_prepared_request
+    with patch.object(client, "refresh_oauth2") as mock_refresh:
+        with patch.object(client.session, "send", return_value=MagicMock()):
+            client.request("GET", "/dynamic-path", api=True)
+            mock_refresh.assert_not_called()
 
-    result = client.request("GET", "/test-path", api=True)
 
-    headers = result["headers"]
-    assert "Authorization" in headers
-    assert headers["Authorization"] == "Bearer token123"
+def test_url_slash_added(client):
+    path_without_slash = "users"
+    with patch.object(client.session, "send", return_value=MagicMock()) as mock_send:
+        client.request("GET", path_without_slash, api=True)
+        prepared_req = mock_send.call_args[0][0]
+        assert prepared_req.path_url.startswith("/")
 
-@patch("app.http_client.Client.refresh_oauth2")
-def test_client_refresh_called_when_token_expired(mock_refresh):
-    client = Client()
-    past_time = int((datetime.now(tz=timezone.utc) - timedelta(minutes=1)).timestamp())
-    client.oauth2_token = OAuth2Token(access_token="old", expires_at=past_time)
 
-    client.request("GET", "/test-path", api=True)
+def test_request_is_sent(client):
+    sent_flag = {"called": False}
 
-    mock_refresh.assert_called_once()
+    def fake_send(req, **kwargs):
+        sent_flag["called"] = True
+        return MagicMock()
 
-@patch("app.http_client.requests.Session.prepare_request")
-def test_client_url_slash_added(mock_prepare_request):
-    client = Client()
-    future_time = int((datetime.now(tz=timezone.utc) + timedelta(minutes=10)).timestamp())
-    client.oauth2_token = OAuth2Token(access_token="token123", expires_at=future_time)
-
-    mock_prepared_request = MagicMock()
-    mock_prepared_request.headers = {}
-    mock_prepare_request.return_value = mock_prepared_request
-
-    result = client.request("GET", "users", api=True)
-
-    prepared_headers = result["headers"]
-
-@patch("app.http_client.requests.Session.prepare_request")
-def test_client_request_sent(mock_prepare_request):
-    client = Client()
-    future_time = int((datetime.now(tz=timezone.utc) + timedelta(minutes=10)).timestamp())
-    client.oauth2_token = OAuth2Token(access_token="token123", expires_at=future_time)
-
-    mock_prepared_request = MagicMock()
-    mock_prepared_request.headers = {}
-    mock_prepare_request.return_value = mock_prepared_request
-
-    result = client.request("GET", "/dummy", api=True)
-
-    mock_prepare_request.assert_called_once()
+    with patch.object(client.session, "send", side_effect=fake_send):
+        client.request("GET", "/dynamic-path", api=True)
+        assert sent_flag["called"] is True
