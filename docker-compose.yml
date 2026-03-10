@@ -4,3 +4,6 @@ services:
   python-tests:
     build: .
     container_name: python_assignment_tests
+    command: pytest -v
+    #remove container after exit
+    restart: "no"
