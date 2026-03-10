@@ -7,6 +7,35 @@ This assignment evaluates your ability to:
 - write focused tests to reproduce a bug,
 - implement a minimal, reviewable fix.
 
+## How to Run Tests
+
+### Locally
+
+1.  **Create and activate a virtual environment:**
+    ```sh
+    python -m venv venv
+    source venv/bin/activate
+    ```
+    *(On Windows, use `venv\Scripts\activate`)*
+
+2.  **Install dependencies:**
+    ```sh
+    pip install -r requirements.txt
+    ```
+
+3.  **Run the tests:**
+    ```sh
+    cd tests/
+    pytest -v
+    ```
+
+### With Docker
+
+Build the image and run the tests using Docker Compose. 
+```sh
+docker compose up --build
+```
+
 ## What you will do
 
 ### 1) Dockerfile (required)
@@ -61,4 +90,4 @@ Create `EXPLANATION.md` (max 250 words) containing:
 
 ## Submission
 
-- Submit a public GitHub repository URL containing your solution to the Google form link provided.
+- Submit a public GitHub repository URL containing your solution to the Google form provided.
