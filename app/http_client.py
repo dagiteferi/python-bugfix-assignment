@@ -38,7 +38,7 @@ class Client:
                headers["Authorization"] = self.oauth2_token.as_header()
 
 
-        req = requests.Request(method=method, url=f"https://example.com{path.lstrip('/')}", headers=headers)
+        req = requests.Request(method=method, url=f"https://example.com/{path.lstrip('/')}", headers=headers)
         prepared = self.session.prepare_request(req)
         
         self.session.send(prepared)
